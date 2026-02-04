@@ -63,7 +63,7 @@
         <div class="row">
             <div class="col">
                 <label>輸入金額</label>
-                <input type="number" id="inputAmount" placeholder="金額" oninput="calculate()">
+                <input type="number" id="inputAmount" placeholder="金額" oninput="calculate()" inputmode="decimal">
             </div>
             <div class="col">
                 <label>金額類型</label>
@@ -95,17 +95,17 @@
             <div class="row">
                 <div class="col">
                     <label class="check-label"><input type="checkbox" id="cleanCheck" checked onchange="calculate()"> 清潔保險 (%)</label>
-                    <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()">
+                    <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()" inputmode="decimal">
                 </div>
                 <div class="col">
                     <label class="check-label"><input type="checkbox" id="retentionCheck" checked onchange="calculate()"> 保留款 (%)</label>
-                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
+                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()" inputmode="decimal">
                 </div>
             </div>
             <div class="row">
                 <div class="col">
                     <label>保留款金額 (可手動修改)</label>
-                    <input type="number" id="retentionAmount" oninput="calculate(true)">
+                    <input type="number" id="retentionAmount" oninput="calculate(true)" inputmode="decimal">
                 </div>
             </div>
         </div>
@@ -113,18 +113,18 @@
         <div class="row">
             <div class="col">
                 <label>加款金額 (＋)</label>
-                <input type="number" id="plusAmount" placeholder="0" oninput="calculate()">
+                <input type="number" id="plusAmount" placeholder="0" oninput="calculate()" inputmode="decimal">
             </div>
             <div class="col">
                 <label>扣款金額 (－)</label>
-                <input type="number" id="minusAmount" placeholder="0" oninput="calculate()">
+                <input type="number" id="minusAmount" placeholder="0" oninput="calculate()" inputmode="decimal">
             </div>
         </div>
 
         <div class="row">
             <div class="col">
                 <label>最終淨額 (可手動修改)</label>
-                <input type="number" id="netAmount" oninput="updateFormulaOnly()">
+                <input type="number" id="netAmount" oninput="updateFormulaOnly()" inputmode="decimal">
             </div>
         </div>
 
