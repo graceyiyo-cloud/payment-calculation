@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>工程費用計算</title>
+    <style>
+        :root {
+            --bg: #F7F6F2;
+            --card: #FFFFFF;
+            --primary: #8E9775;
+            --accent: #AF8F6F;
+            --text: #4A4A4A;
+            --border: #E0DED7;
+            --danger: #e74c3c;
+            --success: #217346;
+            --info: #5da9ad;
+            --dark: #2c3e50;
+        }
+
+        body { background-color: var(--bg); color: var(--text); font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        
+        .page { width: 100%; max-width: 500px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .card { background: var(--card); width: 100%; padding: 25px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); box-sizing: border-box; margin-bottom: 20px; }
+        
+        h2 { text-align: center; color: var(--primary); font-weight: 500; margin-bottom: 20px; letter-spacing: 1px; }
+        .row { display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end; }
+        .col { flex: 1; display: flex; flex-direction: column; }
+        
+        label { font-size: 0.8rem; margin-bottom: 5px; color: #999; }
+        input, select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; background: #FAFAFA; width: 100%; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--primary); background: #FFF; }
+        
+        #netAmount { font-weight: bold; color: var(--accent); background-color: #FFF9F3; border: 1px solid var(--accent); }
+        .config-box { background: #F9F9F8; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #EEE; }
+        
+        .display-area { background: #FCFCFB; border: 1px solid #EEE; padding: 20px; border-radius: 10px; margin-top: 20px; min-height: 50px; }
+        .section-title { font-size: 0.85rem; font-weight: bold; color: var(--primary); margin-bottom: 10px; border-left: 3px solid var(--primary); padding-left: 8px; }
+        
+        .formula { font-size: 0.9rem; margin-bottom: 12px; line-height: 1.6; color: #666; }
+        .formula strong { color: #333; font-weight: 600; }
+        .subtotal-line { background: #F0F2EB; padding: 4px 8px; border-radius: 4px; color: var(--primary) !important; }
+        
+        .btn-reset { width: 100%; padding: 10px; margin-top: 10px; color: #BBB; border: 1px solid #EEE; background: none; cursor: pointer; border-radius: 8px; font-size: 0.8rem; }
+        
+        .check-label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .check-label input[type="checkbox"] { width: auto; margin: 0; }
+
+        .tax-toggle { display: flex; background: #EEE; border-radius: 8px; padding: 3px; margin-bottom: 5px; }
+        .tax-toggle label { flex: 1; margin: 0; padding: 5px; text-align: center; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; color: #777; font-size: 0.75rem; }
+        .tax-toggle input { display: none; }
+        .tax-toggle input:checked + span { background: var(--primary); color: white; border-radius: 5px; display: block; padding: 5px 0; }
+    </style>
+</head>
+<body>
+
+<div id="calcPage" class="page">
+    <div class="card">
+        <h2>工程費用計算</h2>
+        
+        <div class="row">
+            <div class="col">
+                <label>輸入金額</label>
+                <input type="number" id="inputAmount" placeholder="金額" oninput="calculate()">
+            </div>
+            <div class="col">
+                <label>金額類型</label>
+                <div class="tax-toggle">
+                    <label>
+                        <input type="radio" name="taxType" value="exclude" checked onchange="calculate()">
+                        <span>未稅</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="taxType" value="include" onchange="calculate()">
+                        <span>含稅</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <label>未稅金額 (回推/計算)</label>
+                <input type="number" id="rawAmount" readonly style="background: #f0f0f0; color: #666;">
+            </div>
+            <div class="col">
+                <label>稅額 (5%)</label>
+                <input type="number" id="taxAmount" readonly style="background: #f0f0f0; color: #666;">
+            </div>
+        </div>
+
+        <div class="config-box">
+            <div class="row">
+                <div class="col">
+                    <label class="check-label"><input type="checkbox" id="cleanCheck" checked onchange="calculate()"> 清潔保險 (%)</label>
+                    <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()">
+                </div>
+                <div class="col">
+                    <label class="check-label"><input type="checkbox" id="retentionCheck" checked onchange="calculate()"> 保留款 (%)</label>
+                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>保留款金額 (可手動修改)</label>
+                    <input type="number" id="retentionAmount" oninput="calculate(true)">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <label>加款金額 (＋)</label>
+                <input type="number" id="plusAmount" placeholder="0" oninput="calculate()">
+            </div>
+            <div class="col">
+                <label>扣款金額 (－)</label>
+                <input type="number" id="minusAmount" placeholder="0" oninput="calculate()">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <label>最終淨額 (可手動修改)</label>
+                <input type="number" id="netAmount" oninput="updateFormulaOnly()">
+            </div>
+        </div>
+
+        <div class="display-area">
+            <div class="section-title">階層計算列示</div>
+            <div id="processFormula" class="formula">請輸入資料...</div>
+        </div>
+
+        <button class="btn-reset" onclick="location.reload()">清除重新開始</button>
+    </div>
+</div>
+
+<script>
+    const fmt = new Intl.NumberFormat('zh-TW');
+    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0 };
+
+    function calculate(isManualRetention = false) {
+        const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
+        const taxType = document.querySelector('input[name="taxType"]:checked').value;
+        const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
+        const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
+        
+        let raw = 0;
+        let tax = 0;
+        let total = 0;
+
+        if (taxType === "exclude") {
+            raw = inputVal;
+            tax = Math.round(raw * 0.05);
+            total = raw + tax;
+        } else {
+            total = inputVal;
+            raw = Math.round(total / 1.05);
+            tax = total - raw;
+        }
+
+        document.getElementById('rawAmount').value = raw || "";
+        document.getElementById('taxAmount').value = tax || "";
+        
+        const hasClean = document.getElementById('cleanCheck').checked;
+        const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
+        const cleanFee = hasClean ? Math.round(total * (cRate / 100)) : 0;
+        const subtotal = total - cleanFee;
+        
+        const hasRetention = document.getElementById('retentionCheck').checked;
+        const rRate = parseFloat(document.getElementById('retentionRate').value) || 0;
+        const retentionInput = document.getElementById('retentionAmount');
+        
+        let retention = hasRetention ? (isManualRetention ? (parseFloat(retentionInput.value) || 0) : Math.round(subtotal * (rRate / 100))) : 0;
+        if(!isManualRetention) retentionInput.value = retention || "";
+        
+        const net = (subtotal - retention) + plus - minus;
+        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus };
+        document.getElementById('netAmount').value = net;
+        renderFormula(net);
+    }
+
+    function updateFormulaOnly() {
+        const manualNet = parseFloat(document.getElementById('netAmount').value) || 0;
+        renderFormula(manualNet);
+    }
+
+    function renderFormula(currentNet) {
+        if (lastCalcState.total === 0 && lastCalcState.plus === 0 && lastCalcState.minus === 0) {
+            document.getElementById('processFormula').innerHTML = "請輸入資料...";
+            return;
+        }
+
+        let html = `<div>① 全額：${fmt.format(lastCalcState.raw)} (未稅) + ${fmt.format(lastCalcState.tax)} (稅) = <strong>${fmt.format(lastCalcState.total)}</strong></div>`;
+        if (lastCalcState.cleanFee !== 0) {
+            html += `<div>② 清潔費(${lastCalcState.cRate}%)：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = <strong>${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
+        }
+        html += `<div class="subtotal-line">③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = <strong>${fmt.format(lastCalcState.subtotal)}</strong></div>`;
+        
+        let stepCount = 4;
+        if (lastCalcState.retention !== 0) {
+            html += `<div>④ 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = <strong>${fmt.format(lastCalcState.retention)}</strong></div>`;
+            stepCount = 5;
+        }
+        
+        if (lastCalcState.plus !== 0) {
+            html += `<div>${stepCount === 5 ? '⑤' : '④'} 加款：<strong>+ ${fmt.format(lastCalcState.plus)}</strong></div>`;
+            stepCount++;
+        }
+        
+        if (lastCalcState.minus !== 0) {
+            const circleNum = stepCount === 6 ? '⑥' : (stepCount === 5 ? '⑤' : '④');
+            html += `<div>${circleNum} 扣款：<strong>- ${fmt.format(lastCalcState.minus)}</strong></div>`;
+            stepCount++;
+        }
+
+        const netCircle = ['④', '⑤', '⑥', '⑦'][stepCount - 4] || '●';
+        html += `<div style="margin-top:5px; border-top:1px solid #EEE; padding-top:5px;">${netCircle} 淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
+        document.getElementById('processFormula').innerHTML = html;
+    }
+</script>
+
+</body>
+</html>
