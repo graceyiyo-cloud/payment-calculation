@@ -16,6 +16,8 @@
             --success: #217346;
             --info: #5da9ad;
             --dark: #2c3e50;
+            --reset-bg: #f8f9fa;
+            --reset-text: #6c757d;
         }
 
         body { background-color: var(--bg); color: var(--text); font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -43,15 +45,60 @@
         .formula strong { color: #333; font-weight: 600; }
         .subtotal-line { background: #F0F2EB; padding: 4px 8px; border-radius: 4px; color: var(--primary) !important; }
         
-        .btn-reset { width: 100%; padding: 10px; margin-top: 10px; color: #BBB; border: 1px solid #EEE; background: none; cursor: pointer; border-radius: 8px; font-size: 0.8rem; }
+        /* 修改後的重設按鈕樣式 */
+        .btn-reset { 
+            width: 100%; 
+            padding: 12px; 
+            margin-top: 20px; 
+            color: var(--reset-text); 
+            border: 1px solid #ddd; 
+            background: var(--reset-bg); 
+            cursor: pointer; 
+            border-radius: 8px; 
+            font-size: 0.9rem; 
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover {
+            background: #f0f0f0;
+            color: var(--danger);
+            border-color: var(--danger);
+        }
         
         .check-label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .check-label input[type="checkbox"] { width: auto; margin: 0; }
 
-        .tax-toggle { display: flex; background: #EEE; border-radius: 8px; padding: 3px; margin-bottom: 5px; }
-        .tax-toggle label { flex: 1; margin: 0; padding: 5px; text-align: center; cursor: pointer; border-radius: 5px; font-weight: bold; transition: 0.2s; color: #777; font-size: 0.75rem; }
+        /* 修改後的稅率切換按鈕樣式 */
+        .tax-toggle { 
+            display: flex; 
+            background: #F0F0F0; 
+            border-radius: 10px; 
+            padding: 4px; 
+            margin-bottom: 0px;
+            border: 1px solid #E0E0E0;
+        }
+        .tax-toggle label { 
+            flex: 1; 
+            margin: 0; 
+            padding: 0; 
+            text-align: center; 
+            cursor: pointer; 
+        }
         .tax-toggle input { display: none; }
-        .tax-toggle input:checked + span { background: var(--primary); color: white; border-radius: 5px; display: block; padding: 5px 0; }
+        .tax-toggle span { 
+            display: block;
+            padding: 8px 0;
+            border-radius: 7px;
+            color: #888;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .tax-toggle input:checked + span { 
+            background: #FFFFFF; 
+            color: var(--primary); 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
@@ -98,11 +145,15 @@
                     <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()">
                 </div>
                 <div class="col">
-                    <label class="check-label"><input type="checkbox" id="retentionCheck" checked onchange="calculate()"> 保留款 (%)</label>
-                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
+                    <label>清潔保險金額</label>
+                    <input type="number" id="cleanAmount" readonly style="background: #f0f0f0; color: #666;">
                 </div>
             </div>
             <div class="row">
+                <div class="col">
+                    <label class="check-label"><input type="checkbox" id="retentionCheck" checked onchange="calculate()"> 保留款 (%)</label>
+                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
+                </div>
                 <div class="col">
                     <label>保留款金額 (可手動修改)</label>
                     <input type="number" id="retentionAmount" oninput="calculate(true)">
@@ -133,7 +184,7 @@
             <div id="processFormula" class="formula">請輸入資料...</div>
         </div>
 
-        <button class="btn-reset" onclick="location.reload()">清除重新開始</button>
+        <button class="btn-reset" onclick="location.reload()">↺ 重新填寫（清空所有欄位）</button>
     </div>
 </div>
 
@@ -167,6 +218,8 @@
         const hasClean = document.getElementById('cleanCheck').checked;
         const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
         const cleanFee = hasClean ? Math.round(total * (cRate / 100)) : 0;
+        document.getElementById('cleanAmount').value = cleanFee || "";
+
         const subtotal = total - cleanFee;
         
         const hasRetention = document.getElementById('retentionCheck').checked;
