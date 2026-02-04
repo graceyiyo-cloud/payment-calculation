@@ -6,18 +6,15 @@
     <title>工程費用計算</title>
     <style>
         :root {
-            --bg: #F7F6F2;
+            --bg: #F4F7F6;
             --card: #FFFFFF;
-            --primary: #8E9775;
-            --accent: #AF8F6F;
-            --text: #4A4A4A;
-            --border: #E0DED7;
-            --danger: #e74c3c;
-            --success: #217346;
-            --info: #5da9ad;
-            --dark: #2c3e50;
-            --reset-bg: #f8f9fa;
-            --reset-text: #6c757d;
+            --primary: #4A5D4E; 
+            --accent: #D4A373;
+            --text: #2C3E50;
+            --label-text: #5D6D7E;
+            --border: #D5DBDB;
+            --danger: #C0392B;
+            --success: #27AE60;
         }
 
         body { background-color: var(--bg); color: var(--text); font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
@@ -25,79 +22,75 @@
         .page { width: 100%; max-width: 500px; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .card { background: var(--card); width: 100%; padding: 25px; border-radius: 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.05); box-sizing: border-box; margin-bottom: 20px; }
+        .card { background: var(--card); width: 100%; padding: 25px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.08); box-sizing: border-box; margin-bottom: 20px; border: 1px solid rgba(0,0,0,0.05); }
         
-        h2 { text-align: center; color: var(--primary); font-weight: 500; margin-bottom: 20px; letter-spacing: 1px; }
-        .row { display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-end; }
+        h2 { text-align: center; color: var(--primary); font-weight: 700; margin-bottom: 25px; letter-spacing: 2px; }
+        .row { display: flex; gap: 12px; margin-bottom: 18px; align-items: flex-end; }
         .col { flex: 1; display: flex; flex-direction: column; }
         
-        label { font-size: 0.8rem; margin-bottom: 5px; color: #999; }
-        input, select { padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; background: #FAFAFA; width: 100%; box-sizing: border-box; }
-        input:focus, select:focus { border-color: var(--primary); background: #FFF; }
+        label { font-size: 0.85rem; margin-bottom: 8px; color: var(--label-text); font-weight: 600; }
+        .tip { font-weight: normal; font-size: 0.75rem; color: var(--accent); }
         
-        #netAmount { font-weight: bold; color: var(--accent); background-color: #FFF9F3; border: 1px solid var(--accent); }
-        .config-box { background: #F9F9F8; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #EEE; }
+        input { padding: 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 1rem; outline: none; background: #FFF; width: 100%; box-sizing: border-box; transition: all 0.2s; }
+        input:focus { border-color: var(--primary); background: #FDFFFD; }
         
-        .display-area { background: #FCFCFB; border: 1px solid #EEE; padding: 20px; border-radius: 10px; margin-top: 20px; min-height: 50px; }
-        .section-title { font-size: 0.85rem; font-weight: bold; color: var(--primary); margin-bottom: 10px; border-left: 3px solid var(--primary); padding-left: 8px; }
-        
-        .formula { font-size: 0.9rem; margin-bottom: 12px; line-height: 1.6; color: #666; }
-        .formula strong { color: #333; font-weight: 600; }
-        .subtotal-line { background: #F0F2EB; padding: 4px 8px; border-radius: 4px; color: var(--primary) !important; }
-        
-        /* 修改後的重設按鈕樣式 */
-        .btn-reset { 
-            width: 100%; 
-            padding: 12px; 
-            margin-top: 20px; 
-            color: var(--reset-text); 
-            border: 1px solid #ddd; 
-            background: var(--reset-bg); 
-            cursor: pointer; 
-            border-radius: 8px; 
-            font-size: 0.9rem; 
-            font-weight: bold;
-            transition: all 0.2s;
-        }
-        .btn-reset:hover {
-            background: #f0f0f0;
-            color: var(--danger);
-            border-color: var(--danger);
-        }
-        
-        .check-label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        .check-label input[type="checkbox"] { width: auto; margin: 0; }
+        input[readonly] { background: #F8F9F9; border-color: #EBEDEF; color: #7F8C8D; }
 
-        /* 修改後的稅率切換按鈕樣式 */
+        #netAmount { 
+            font-size: 1.5rem; 
+            font-weight: 800; 
+            color: var(--primary); 
+            border: 3px solid var(--primary); 
+            background: #FFF; 
+            text-align: center;
+            height: 60px;
+            box-shadow: 0 4px 10px rgba(74, 93, 78, 0.1);
+        }
+        
+        .config-box { background: #FDFEFE; padding: 18px; border-radius: 15px; margin: 20px 0; border: 1.5px solid #E5E8E8; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); }
+        
+        .display-area { background: #F8F9F9; border-radius: 15px; padding: 20px; margin-top: 20px; border: 1px solid #EAEDED; }
+        .section-title { font-size: 0.9rem; font-weight: 800; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-title::before { content: ''; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; }
+        
+        .formula { font-size: 0.95rem; line-height: 1.8; color: #444; }
+        .formula strong { color: #000; font-weight: 700; }
+        .subtotal-line { background: #E9F2EC; padding: 6px 12px; border-radius: 8px; color: #2D5A3F !important; margin: 8px 0; font-weight: 600; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-copy { flex: 2; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-copy:active { transform: scale(0.98); opacity: 0.9; }
+        .btn-reset { flex: 1; padding: 14px; background: #FFF; color: var(--danger); border: 1.5px solid var(--danger); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+        .btn-reset:hover { background: #FFF5F5; }
+
+        .check-label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-size: 0.9rem; }
+        .check-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
+
         .tax-toggle { 
             display: flex; 
-            background: #F0F0F0; 
-            border-radius: 10px; 
+            background: #EBEDEF; 
+            border-radius: 12px; 
             padding: 4px; 
-            margin-bottom: 0px;
-            border: 1px solid #E0E0E0;
+            height: 46px;
+            box-sizing: border-box;
         }
-        .tax-toggle label { 
-            flex: 1; 
-            margin: 0; 
-            padding: 0; 
-            text-align: center; 
-            cursor: pointer; 
-        }
+        .tax-toggle label { flex: 1; margin: 0; cursor: pointer; }
         .tax-toggle input { display: none; }
         .tax-toggle span { 
-            display: block;
-            padding: 8px 0;
-            border-radius: 7px;
-            color: #888;
-            font-size: 0.85rem;
-            font-weight: 600;
-            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            border-radius: 10px;
+            color: #7F8C8D;
+            font-size: 0.9rem;
+            font-weight: 700;
+            transition: all 0.3s;
         }
         .tax-toggle input:checked + span { 
-            background: #FFFFFF; 
-            color: var(--primary); 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: var(--primary); 
+            color: #FFFFFF; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         }
     </style>
 </head>
@@ -110,7 +103,7 @@
         <div class="row">
             <div class="col">
                 <label>輸入金額</label>
-                <input type="number" id="inputAmount" placeholder="金額" oninput="calculate()">
+                <input type="number" id="inputAmount" placeholder="0" oninput="calculate()">
             </div>
             <div class="col">
                 <label>金額類型</label>
@@ -129,12 +122,12 @@
 
         <div class="row">
             <div class="col">
-                <label>未稅金額 (回推/計算)</label>
-                <input type="number" id="rawAmount" readonly style="background: #f0f0f0; color: #666;">
+                <label>未稅金額</label>
+                <input type="number" id="rawAmount" readonly>
             </div>
             <div class="col">
                 <label>稅額 (5%)</label>
-                <input type="number" id="taxAmount" readonly style="background: #f0f0f0; color: #666;">
+                <input type="number" id="taxAmount" readonly>
             </div>
         </div>
 
@@ -146,7 +139,7 @@
                 </div>
                 <div class="col">
                     <label>清潔保險金額</label>
-                    <input type="number" id="cleanAmount" readonly style="background: #f0f0f0; color: #666;">
+                    <input type="number" id="cleanAmount" readonly>
                 </div>
             </div>
             <div class="row">
@@ -155,7 +148,7 @@
                     <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
                 </div>
                 <div class="col">
-                    <label>保留款金額 (可手動修改)</label>
+                    <label>保留款金額 (可手修)</label>
                     <input type="number" id="retentionAmount" oninput="calculate(true)">
                 </div>
             </div>
@@ -163,11 +156,11 @@
 
         <div class="row">
             <div class="col">
-                <label>加款金額 (＋)</label>
+                <label>加款金額 <span class="tip">(請填含稅)</span></label>
                 <input type="number" id="plusAmount" placeholder="0" oninput="calculate()">
             </div>
             <div class="col">
-                <label>扣款金額 (－)</label>
+                <label>扣款金額 <span class="tip">(請填含稅)</span></label>
                 <input type="number" id="minusAmount" placeholder="0" oninput="calculate()">
             </div>
         </div>
@@ -180,11 +173,14 @@
         </div>
 
         <div class="display-area">
-            <div class="section-title">計算式</div>
+            <div class="section-title">計算明細</div>
             <div id="processFormula" class="formula">請輸入資料...</div>
         </div>
 
-        <button class="btn-reset" onclick="location.reload()">↺ 重新填寫（清空所有欄位）</button>
+        <div class="btn-group">
+            <button class="btn-copy" onclick="copyResult()">📋 複製計算明細</button>
+            <button class="btn-reset" onclick="location.reload()">↺ 重填</button>
+        </div>
     </div>
 </div>
 
@@ -198,9 +194,7 @@
         const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
         const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
         
-        let raw = 0;
-        let tax = 0;
-        let total = 0;
+        let raw = 0; tax = 0; total = 0;
 
         if (taxType === "exclude") {
             raw = inputVal;
@@ -247,31 +241,81 @@
         }
 
         let html = `<div>① 全額：${fmt.format(lastCalcState.raw)} (未稅) + ${fmt.format(lastCalcState.tax)} (稅) = <strong>${fmt.format(lastCalcState.total)}</strong></div>`;
-        if (lastCalcState.cleanFee !== 0) {
-            html += `<div>② 清潔費(${lastCalcState.cRate}%)：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = <strong>${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
-        }
-        html += `<div class="subtotal-line">③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = <strong>${fmt.format(lastCalcState.subtotal)}</strong></div>`;
         
-        let stepCount = 4;
+        let currentStep = 2;
+
+        if (lastCalcState.cleanFee !== 0) {
+            html += `<div>② 清潔費(${lastCalcState.cRate}%)：<strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
+            html += `<div class="subtotal-line">③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}</div>`;
+            currentStep = 4;
+        }
+        
         if (lastCalcState.retention !== 0) {
-            html += `<div>④ 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = <strong>${fmt.format(lastCalcState.retention)}</strong></div>`;
-            stepCount = 5;
+            const circle = currentStep === 4 ? '④' : '②';
+            html += `<div>${circle} 保留款(${lastCalcState.rRate}%)：<strong>-${fmt.format(lastCalcState.retention)}</strong></div>`;
+            currentStep++;
         }
         
         if (lastCalcState.plus !== 0) {
-            html += `<div>${stepCount === 5 ? '⑤' : '④'} 加款：<strong>+ ${fmt.format(lastCalcState.plus)}</strong></div>`;
-            stepCount++;
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            html += `<div>${circle} 加款：<strong>+${fmt.format(lastCalcState.plus)}</strong></div>`;
+            currentStep++;
         }
         
         if (lastCalcState.minus !== 0) {
-            const circleNum = stepCount === 6 ? '⑥' : (stepCount === 5 ? '⑤' : '④');
-            html += `<div>${circleNum} 扣款：<strong>- ${fmt.format(lastCalcState.minus)}</strong></div>`;
-            stepCount++;
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            html += `<div>${circle} 扣款：<strong>-${fmt.format(lastCalcState.minus)}</strong></div>`;
         }
 
-        const netCircle = ['④', '⑤', '⑥', '⑦'][stepCount - 4] || '●';
-        html += `<div style="margin-top:5px; border-top:1px solid #EEE; padding-top:5px;">${netCircle} 淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
+        html += `<div style="margin-top:8px; border-top:1.5px solid #DDD; padding-top:8px;">● 最終淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
         document.getElementById('processFormula').innerHTML = html;
+    }
+
+    function copyResult() {
+        const net = document.getElementById('netAmount').value;
+        if (!net || net == 0) { alert("請先輸入金額"); return; }
+
+        let text = `【工程費用計算明細】\n`;
+        text += `① 全額：${fmt.format(lastCalcState.raw)} (未稅) + ${fmt.format(lastCalcState.tax)} (稅) = ${fmt.format(lastCalcState.total)}\n`;
+        
+        let currentStep = 2;
+
+        if (lastCalcState.cleanFee !== 0) {
+            text += `② 清潔費(${lastCalcState.cRate}%)：-${fmt.format(lastCalcState.cleanFee)}\n`;
+            text += `③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}\n`;
+            currentStep = 4;
+        }
+        
+        if (lastCalcState.retention !== 0) {
+            const circle = currentStep === 4 ? '④' : '②';
+            text += `${circle} 保留款(${lastCalcState.rRate}%)：-${fmt.format(lastCalcState.retention)}\n`;
+            currentStep++;
+        }
+        
+        if (lastCalcState.plus !== 0) {
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            text += `${circle} 加款：+${fmt.format(lastCalcState.plus)}\n`;
+            currentStep++;
+        }
+        
+        if (lastCalcState.minus !== 0) {
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            text += `${circle} 扣款：-${fmt.format(lastCalcState.minus)}\n`;
+        }
+
+        text += `------------------\n`;
+        text += `● 最終淨額：${fmt.format(net)}`;
+
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelector('.btn-copy');
+            const originalText = btn.innerText;
+            btn.innerText = "✅ 已複製明細";
+            btn.style.background = "#27AE60";
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.style.background = "";
+            }, 2000);
+        });
     }
 </script>
 
