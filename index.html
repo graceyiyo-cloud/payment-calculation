@@ -62,8 +62,8 @@
         
         <div class="row">
             <div class="col">
-                <label>輸入金額</label>
-                <input type="number" id="inputAmount" placeholder="金額" oninput="calculate()" inputmode="decimal">
+                <label>輸入金額 (支援+-*/)</label>
+                <input type="text" id="inputAmount" placeholder="如: 100+50" oninput="calculate()" inputmode="tel">
             </div>
             <div class="col">
                 <label>金額類型</label>
@@ -95,17 +95,17 @@
             <div class="row">
                 <div class="col">
                     <label class="check-label"><input type="checkbox" id="cleanCheck" checked onchange="calculate()"> 清潔保險 (%)</label>
-                    <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()" inputmode="decimal">
+                    <input type="text" id="cleanRate" value="0.5" oninput="calculate()" inputmode="tel">
                 </div>
                 <div class="col">
                     <label class="check-label"><input type="checkbox" id="retentionCheck" checked onchange="calculate()"> 保留款 (%)</label>
-                    <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()" inputmode="decimal">
+                    <input type="text" id="retentionRate" value="10" oninput="calculate()" inputmode="tel">
                 </div>
             </div>
             <div class="row">
                 <div class="col">
                     <label>保留款金額 (可手動修改)</label>
-                    <input type="number" id="retentionAmount" oninput="calculate(true)" inputmode="decimal">
+                    <input type="text" id="retentionAmount" oninput="calculate(true)" inputmode="tel">
                 </div>
             </div>
         </div>
@@ -113,18 +113,18 @@
         <div class="row">
             <div class="col">
                 <label>加款金額 (＋)</label>
-                <input type="number" id="plusAmount" placeholder="0" oninput="calculate()" inputmode="decimal">
+                <input type="text" id="plusAmount" placeholder="0" oninput="calculate()" inputmode="tel">
             </div>
             <div class="col">
                 <label>扣款金額 (－)</label>
-                <input type="number" id="minusAmount" placeholder="0" oninput="calculate()" inputmode="decimal">
+                <input type="text" id="minusAmount" placeholder="0" oninput="calculate()" inputmode="tel">
             </div>
         </div>
 
         <div class="row">
             <div class="col">
                 <label>最終淨額 (可手動修改)</label>
-                <input type="number" id="netAmount" oninput="updateFormulaOnly()" inputmode="decimal">
+                <input type="text" id="netAmount" oninput="updateFormulaOnly()" inputmode="tel">
             </div>
         </div>
 
@@ -141,11 +141,23 @@
     const fmt = new Intl.NumberFormat('zh-TW');
     let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0 };
 
+    // 新增：安全地解析字串中的數學運算
+    function evaluateExpression(str) {
+        try {
+            // 只允許數字和 +-*/. 符號
+            const cleanStr = str.replace(/[^-0-9+*/.()]/g, '');
+            if (!cleanStr) return 0;
+            return Function('"use strict"; return (' + cleanStr + ')')() || 0;
+        } catch (e) {
+            return 0;
+        }
+    }
+
     function calculate(isManualRetention = false) {
-        const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
+        const inputVal = evaluateExpression(document.getElementById('inputAmount').value);
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
-        const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
-        const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
+        const plus = evaluateExpression(document.getElementById('plusAmount').value);
+        const minus = evaluateExpression(document.getElementById('minusAmount').value);
         
         let raw = 0;
         let tax = 0;
@@ -165,15 +177,15 @@
         document.getElementById('taxAmount').value = tax || "";
         
         const hasClean = document.getElementById('cleanCheck').checked;
-        const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
+        const cRate = evaluateExpression(document.getElementById('cleanRate').value);
         const cleanFee = hasClean ? Math.round(total * (cRate / 100)) : 0;
         const subtotal = total - cleanFee;
         
         const hasRetention = document.getElementById('retentionCheck').checked;
-        const rRate = parseFloat(document.getElementById('retentionRate').value) || 0;
+        const rRate = evaluateExpression(document.getElementById('retentionRate').value);
         const retentionInput = document.getElementById('retentionAmount');
         
-        let retention = hasRetention ? (isManualRetention ? (parseFloat(retentionInput.value) || 0) : Math.round(subtotal * (rRate / 100))) : 0;
+        let retention = hasRetention ? (isManualRetention ? (evaluateExpression(retentionInput.value)) : Math.round(subtotal * (rRate / 100))) : 0;
         if(!isManualRetention) retentionInput.value = retention || "";
         
         const net = (subtotal - retention) + plus - minus;
@@ -183,7 +195,7 @@
     }
 
     function updateFormulaOnly() {
-        const manualNet = parseFloat(document.getElementById('netAmount').value) || 0;
+        const manualNet = evaluateExpression(document.getElementById('netAmount').value);
         renderFormula(manualNet);
     }
 
