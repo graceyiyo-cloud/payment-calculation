@@ -152,6 +152,14 @@
                     <input type="number" id="retentionAmount" oninput="calculate(true)">
                 </div>
             </div>
+            <div class="row" style="margin-bottom: 0;">
+                <div class="col">
+                    <label class="check-label">
+                        <input type="checkbox" id="invoiceIncludeRetention" onchange="calculate()"> 
+                        發票金額含保留款 <span class="tip">(勾選後將分列應付與發票)</span>
+                    </label>
+                </div>
+            </div>
         </div>
 
         <div class="row">
@@ -186,13 +194,14 @@
 
 <script>
     const fmt = new Intl.NumberFormat('zh-TW');
-    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0 };
+    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0, invoiceIncludeRet: false };
 
     function calculate(isManualRetention = false) {
         const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
         const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
         const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
+        const invoiceIncludeRet = document.getElementById('invoiceIncludeRetention').checked;
         
         let raw = 0; tax = 0; total = 0;
 
@@ -224,7 +233,7 @@
         if(!isManualRetention) retentionInput.value = retention || "";
         
         const net = (subtotal - retention) + plus - minus;
-        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus };
+        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus, invoiceIncludeRet };
         document.getElementById('netAmount').value = net;
         renderFormula(net);
     }
@@ -267,12 +276,30 @@
             html += `<div>${circle} 扣款：<strong>-${fmt.format(lastCalcState.minus)}</strong></div>`;
         }
 
-        html += `<div style="margin-top:8px; border-top:1.5px solid #DDD; padding-top:8px;">● 最終淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
+        html += `<div style="margin-top:8px; border-top:1.5px solid #DDD; padding-top:8px; font-size: 0.85rem; color: #666;">`;
+        
+        // 建立計算式字串
+        let calcPath = `${fmt.format(lastCalcState.subtotal)}`;
+        if (lastCalcState.retention !== 0) calcPath += ` - ${fmt.format(lastCalcState.retention)}`;
+        if (lastCalcState.plus !== 0) calcPath += ` + ${fmt.format(lastCalcState.plus)}`;
+        if (lastCalcState.minus !== 0) calcPath += ` - ${fmt.format(lastCalcState.minus)}`;
+
+        if (lastCalcState.invoiceIncludeRet && lastCalcState.retention !== 0) {
+            const invoiceAmt = currentNet + lastCalcState.retention;
+            html += `<div>計算：${calcPath} = ${fmt.format(currentNet)}</div>`;
+            html += `<div style="font-size: 1rem; color: var(--text); margin-top: 4px;">● 本次應付金額：<strong>${fmt.format(currentNet)}</strong></div>`;
+            html += `<div style="font-size: 1rem; color: var(--text);">● 本次發票金額：<strong>${fmt.format(invoiceAmt)}</strong> <span class="tip">(含保留款)</span></div>`;
+        } else {
+            html += `<div>計算：${calcPath} = ${fmt.format(currentNet)}</div>`;
+            html += `<div style="font-size: 1rem; color: var(--text); margin-top: 4px;">● 最終淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
+        }
+        html += `</div>`;
+
         document.getElementById('processFormula').innerHTML = html;
     }
 
     function copyResult() {
-        const net = document.getElementById('netAmount').value;
+        const net = parseFloat(document.getElementById('netAmount').value) || 0;
         if (!net || net == 0) { alert("請先輸入金額"); return; }
 
         let text = `【工程費用計算明細】\n`;
@@ -304,7 +331,21 @@
         }
 
         text += `------------------\n`;
-        text += `● 最終淨額：${fmt.format(net)}`;
+        
+        let calcPath = `${fmt.format(lastCalcState.subtotal)}`;
+        if (lastCalcState.retention !== 0) calcPath += ` - ${fmt.format(lastCalcState.retention)}`;
+        if (lastCalcState.plus !== 0) calcPath += ` + ${fmt.format(lastCalcState.plus)}`;
+        if (lastCalcState.minus !== 0) calcPath += ` - ${fmt.format(lastCalcState.minus)}`;
+        
+        text += `計算過程：${calcPath} = ${fmt.format(net)}\n`;
+
+        if (lastCalcState.invoiceIncludeRet && lastCalcState.retention !== 0) {
+            const invoiceAmt = net + lastCalcState.retention;
+            text += `● 本次應付金額：${fmt.format(net)}\n`;
+            text += `● 本次發票金額：${fmt.format(invoiceAmt)} (含保留款)`;
+        } else {
+            text += `● 最終淨額：${fmt.format(net)}`;
+        }
 
         navigator.clipboard.writeText(text).then(() => {
             const btn = document.querySelector('.btn-copy');
