@@ -254,14 +254,14 @@
         let currentStep = 2;
 
         if (lastCalcState.cleanFee !== 0) {
-            html += `<div>② 清潔費(${lastCalcState.cRate}%)：<strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
+            html += `<div>② 清潔費：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = <strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
             html += `<div class="subtotal-line">③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}</div>`;
             currentStep = 4;
         }
         
         if (lastCalcState.retention !== 0) {
             const circle = currentStep === 4 ? '④' : '②';
-            html += `<div>${circle} 保留款(${lastCalcState.rRate}%)：<strong>-${fmt.format(lastCalcState.retention)}</strong></div>`;
+            html += `<div>${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = <strong>-${fmt.format(lastCalcState.retention)}</strong></div>`;
             currentStep++;
         }
         
@@ -308,14 +308,14 @@
         let currentStep = 2;
 
         if (lastCalcState.cleanFee !== 0) {
-            text += `② 清潔費(${lastCalcState.cRate}%)：-${fmt.format(lastCalcState.cleanFee)}\n`;
+            text += `② 清潔費：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = -${fmt.format(lastCalcState.cleanFee)}\n`;
             text += `③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}\n`;
             currentStep = 4;
         }
         
         if (lastCalcState.retention !== 0) {
             const circle = currentStep === 4 ? '④' : '②';
-            text += `${circle} 保留款(${lastCalcState.rRate}%)：-${fmt.format(lastCalcState.retention)}\n`;
+            text += `${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = -${fmt.format(lastCalcState.retention)}\n`;
             currentStep++;
         }
         
