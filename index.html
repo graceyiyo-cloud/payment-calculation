@@ -66,7 +66,7 @@
         .check-label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-size: 0.9rem; }
         .check-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
 
-        .tax-toggle { 
+        .toggle-group { 
             display: flex; 
             background: #EBEDEF; 
             border-radius: 12px; 
@@ -74,9 +74,9 @@
             height: 46px;
             box-sizing: border-box;
         }
-        .tax-toggle label { flex: 1; margin: 0; cursor: pointer; }
-        .tax-toggle input { display: none; }
-        .tax-toggle span { 
+        .toggle-group label { flex: 1; margin: 0; cursor: pointer; }
+        .toggle-group input { display: none; }
+        .toggle-group span { 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -87,10 +87,13 @@
             font-weight: 700;
             transition: all 0.3s;
         }
-        .tax-toggle input:checked + span { 
+        .toggle-group input:checked + span { 
             background: var(--primary); 
             color: #FFFFFF; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        #calcBaseGroup input:checked + span {
+            background: var(--accent);
         }
     </style>
 </head>
@@ -107,7 +110,7 @@
             </div>
             <div class="col">
                 <label>金額類型</label>
-                <div class="tax-toggle">
+                <div class="toggle-group">
                     <label>
                         <input type="radio" name="taxType" value="exclude" checked onchange="calculate()">
                         <span>未稅</span>
@@ -132,6 +135,21 @@
         </div>
 
         <div class="config-box">
+            <div class="row">
+                <div class="col">
+                    <label>計算基準 <span class="tip">(影響清潔費與保留款母數)</span></label>
+                    <div class="toggle-group" id="calcBaseGroup">
+                        <label>
+                            <input type="radio" name="calcBase" value="total" checked onchange="calculate()">
+                            <span>全額(含稅)</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="calcBase" value="raw" onchange="calculate()">
+                            <span>未稅額</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <div class="col">
                     <label class="check-label"><input type="checkbox" id="cleanCheck" checked onchange="calculate()"> 清潔保險 (%)</label>
@@ -194,17 +212,19 @@
 
 <script>
     const fmt = new Intl.NumberFormat('zh-TW');
-    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0, invoiceIncludeRet: false };
+    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0, invoiceIncludeRet: false, calcBase: 'total' };
 
     function calculate(isManualRetention = false) {
         const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
+        const calcBase = document.querySelector('input[name="calcBase"]:checked').value;
         const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
         const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
         const invoiceIncludeRet = document.getElementById('invoiceIncludeRetention').checked;
         
-        let raw = 0; tax = 0; total = 0;
+        let raw = 0, tax = 0, total = 0;
 
+        // 1. 基礎稅額拆分
         if (taxType === "exclude") {
             raw = inputVal;
             tax = Math.round(raw * 0.05);
@@ -218,22 +238,44 @@
         document.getElementById('rawAmount').value = raw || "";
         document.getElementById('taxAmount').value = tax || "";
         
+        // 2. 決定計算清潔費與保留款的基準母數
+        const baseAmt = (calcBase === 'total') ? total : raw;
+
+        // 3. 清潔費
         const hasClean = document.getElementById('cleanCheck').checked;
         const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
-        const cleanFee = hasClean ? Math.round(total * (cRate / 100)) : 0;
+        const cleanFee = hasClean ? Math.round(baseAmt * (cRate / 100)) : 0;
         document.getElementById('cleanAmount').value = cleanFee || "";
 
-        const subtotal = total - cleanFee;
+        // 4. 小計 (基準母數 - 清潔費)
+        const subtotal = baseAmt - cleanFee;
         
+        // 5. 保留款
         const hasRetention = document.getElementById('retentionCheck').checked;
         const rRate = parseFloat(document.getElementById('retentionRate').value) || 0;
         const retentionInput = document.getElementById('retentionAmount');
-        
         let retention = hasRetention ? (isManualRetention ? (parseFloat(retentionInput.value) || 0) : Math.round(subtotal * (rRate / 100))) : 0;
         if(!isManualRetention) retentionInput.value = retention || "";
         
-        const net = (subtotal - retention) + plus - minus;
-        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus, invoiceIncludeRet };
+        // 6. 最終淨額計算
+        let net = 0;
+        if (calcBase === 'total') {
+            // 含稅基準：(含稅額 - 清潔費 - 保留款) + 加扣款
+            net = (subtotal - retention) + plus - minus;
+        } else {
+            // 未稅基準：(未稅額 - 清潔費 - 保留款) = 稅前餘額
+            // 稅額 = 稅前餘額 * 5%
+            // 淨額 = 稅前餘額 + 重算稅額 + 加扣款
+            const preTaxRemain = subtotal - retention;
+            const recalculatedTax = Math.round(preTaxRemain * 0.05);
+            net = preTaxRemain + recalculatedTax + plus - minus;
+            
+            // 更新畫面上顯示的稅額，使其與計算邏輯一致
+            document.getElementById('taxAmount').value = recalculatedTax;
+            tax = recalculatedTax;
+        }
+
+        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus, invoiceIncludeRet, calcBase };
         document.getElementById('netAmount').value = net;
         renderFormula(net);
     }
@@ -244,24 +286,37 @@
     }
 
     function renderFormula(currentNet) {
-        if (lastCalcState.total === 0 && lastCalcState.plus === 0 && lastCalcState.minus === 0) {
+        if (lastCalcState.raw === 0 && lastCalcState.plus === 0 && lastCalcState.minus === 0) {
             document.getElementById('processFormula').innerHTML = "請輸入資料...";
             return;
         }
 
-        let html = `<div>① 全額：${fmt.format(lastCalcState.raw)} (未稅) + ${fmt.format(lastCalcState.tax)} (稅) = <strong>${fmt.format(lastCalcState.total)}</strong></div>`;
+        let html = "";
+        const isRawBase = lastCalcState.calcBase === 'raw';
+        const baseAmtLabel = isRawBase ? fmt.format(lastCalcState.raw) : fmt.format(lastCalcState.total);
+        const baseName = isRawBase ? "未稅額" : "含稅總額";
+
+        html += `<div>① 基準 (${baseName})：<strong>${baseAmtLabel}</strong></div>`;
         
         let currentStep = 2;
 
         if (lastCalcState.cleanFee !== 0) {
-            html += `<div>② 清潔費：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = <strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
-            html += `<div class="subtotal-line">③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}</div>`;
+            html += `<div>② 清潔費：${baseAmtLabel} × ${lastCalcState.cRate}% = <strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
+            html += `<div class="subtotal-line">③ 小計：${baseAmtLabel} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}</div>`;
             currentStep = 4;
         }
         
         if (lastCalcState.retention !== 0) {
             const circle = currentStep === 4 ? '④' : '②';
             html += `<div>${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = <strong>-${fmt.format(lastCalcState.retention)}</strong></div>`;
+            currentStep++;
+        }
+
+        const preTaxNet = lastCalcState.subtotal - lastCalcState.retention;
+
+        if (isRawBase) {
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            html += `<div>${circle} 稅額 (5%)：${fmt.format(preTaxNet)} × 5% = <strong>+${fmt.format(lastCalcState.tax)}</strong></div>`;
             currentStep++;
         }
         
@@ -278,9 +333,8 @@
 
         html += `<div style="margin-top:8px; border-top:1.5px solid #DDD; padding-top:8px; font-size: 0.85rem; color: #666;">`;
         
-        // 建立計算式字串
-        let calcPath = `${fmt.format(lastCalcState.subtotal)}`;
-        if (lastCalcState.retention !== 0) calcPath += ` - ${fmt.format(lastCalcState.retention)}`;
+        let calcPath = `${fmt.format(preTaxNet)}`;
+        if (isRawBase) calcPath = `(${calcPath} + ${fmt.format(lastCalcState.tax)})`;
         if (lastCalcState.plus !== 0) calcPath += ` + ${fmt.format(lastCalcState.plus)}`;
         if (lastCalcState.minus !== 0) calcPath += ` - ${fmt.format(lastCalcState.minus)}`;
 
@@ -302,20 +356,32 @@
         const net = parseFloat(document.getElementById('netAmount').value) || 0;
         if (!net || net == 0) { alert("請先輸入金額"); return; }
 
-        let text = `【工程費用計算明細】\n`;
-        text += `① 全額：${fmt.format(lastCalcState.raw)} (未稅) + ${fmt.format(lastCalcState.tax)} (稅) = ${fmt.format(lastCalcState.total)}\n`;
+        const isRawBase = lastCalcState.calcBase === 'raw';
+        const baseAmtLabel = isRawBase ? fmt.format(lastCalcState.raw) : fmt.format(lastCalcState.total);
+        const baseName = isRawBase ? "未稅額" : "含稅總額";
+
+        let text = `【工程費用計算明細】(基準：${baseName})\n`;
+        text += `① 基準金額：${baseAmtLabel}\n`;
         
         let currentStep = 2;
 
         if (lastCalcState.cleanFee !== 0) {
-            text += `② 清潔費：${fmt.format(lastCalcState.total)} × ${lastCalcState.cRate}% = -${fmt.format(lastCalcState.cleanFee)}\n`;
-            text += `③ 小計：${fmt.format(lastCalcState.total)} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}\n`;
+            text += `② 清潔費：${baseAmtLabel} × ${lastCalcState.cRate}% = -${fmt.format(lastCalcState.cleanFee)}\n`;
+            text += `③ 小計：${baseAmtLabel} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}\n`;
             currentStep = 4;
         }
         
         if (lastCalcState.retention !== 0) {
             const circle = currentStep === 4 ? '④' : '②';
             text += `${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = -${fmt.format(lastCalcState.retention)}\n`;
+            currentStep++;
+        }
+
+        const preTaxNet = lastCalcState.subtotal - lastCalcState.retention;
+
+        if (isRawBase) {
+            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
+            text += `${circle} 稅額 (5%)：${fmt.format(preTaxNet)} × 5% = +${fmt.format(lastCalcState.tax)}\n`;
             currentStep++;
         }
         
@@ -332,13 +398,6 @@
 
         text += `------------------\n`;
         
-        let calcPath = `${fmt.format(lastCalcState.subtotal)}`;
-        if (lastCalcState.retention !== 0) calcPath += ` - ${fmt.format(lastCalcState.retention)}`;
-        if (lastCalcState.plus !== 0) calcPath += ` + ${fmt.format(lastCalcState.plus)}`;
-        if (lastCalcState.minus !== 0) calcPath += ` - ${fmt.format(lastCalcState.minus)}`;
-        
-        text += `計算過程：${calcPath} = ${fmt.format(net)}\n`;
-
         if (lastCalcState.invoiceIncludeRet && lastCalcState.retention !== 0) {
             const invoiceAmt = net + lastCalcState.retention;
             text += `● 本次應付金額：${fmt.format(net)}\n`;
