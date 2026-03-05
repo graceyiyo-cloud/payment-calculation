@@ -36,6 +36,8 @@
         
         input[readonly] { background: #F8F9F9; border-color: #EBEDEF; color: #7F8C8D; }
 
+        .reason-input { margin-top: 8px; font-size: 0.85rem; padding: 8px 12px; border-style: dashed; }
+
         #netAmount { 
             font-size: 1.5rem; 
             font-weight: 800; 
@@ -55,8 +57,10 @@
         
         .formula { font-size: 0.95rem; line-height: 1.8; color: #444; }
         .formula strong { color: #000; font-weight: 700; }
-        .subtotal-line { background: #E9F2EC; padding: 6px 12px; border-radius: 8px; color: #2D5A3F !important; margin: 8px 0; font-weight: 600; }
         
+        .formula-row { display: grid; grid-template-columns: 1.8em 1fr; margin-bottom: 2px; }
+        .formula-sub { padding-left: 1.8em; color: #666; font-size: 0.9rem; margin-bottom: 4px; }
+
         .btn-group { display: flex; gap: 10px; margin-top: 20px; }
         .btn-copy { flex: 2; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .btn-copy:active { transform: scale(0.98); opacity: 0.9; }
@@ -184,10 +188,12 @@
             <div class="col">
                 <label>加款金額 <span class="tip">(請填含稅)</span></label>
                 <input type="number" id="plusAmount" placeholder="0" oninput="calculate()">
+                <input type="text" id="plusReason" class="reason-input" placeholder="加款事由..." oninput="calculate()">
             </div>
             <div class="col">
                 <label>扣款金額 <span class="tip">(請填含稅)</span></label>
                 <input type="number" id="minusAmount" placeholder="0" oninput="calculate()">
+                <input type="text" id="minusReason" class="reason-input" placeholder="扣款事由..." oninput="calculate()">
             </div>
         </div>
 
@@ -212,19 +218,21 @@
 
 <script>
     const fmt = new Intl.NumberFormat('zh-TW');
-    let lastCalcState = { raw: 0, tax: 0, total: 0, cRate: 0, cleanFee: 0, subtotal: 0, rRate: 0, retention: 0, plus: 0, minus: 0, invoiceIncludeRet: false, calcBase: 'total' };
+    const circles = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+    let lastCalcState = {};
 
     function calculate(isManualRetention = false) {
         const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
         const calcBase = document.querySelector('input[name="calcBase"]:checked').value;
         const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
+        const plusReason = document.getElementById('plusReason').value.trim();
         const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
+        const minusReason = document.getElementById('minusReason').value.trim();
         const invoiceIncludeRet = document.getElementById('invoiceIncludeRetention').checked;
         
         let raw = 0, tax = 0, total = 0;
 
-        // 1. 基礎稅額拆分
         if (taxType === "exclude") {
             raw = inputVal;
             tax = Math.round(raw * 0.05);
@@ -238,44 +246,36 @@
         document.getElementById('rawAmount').value = raw || "";
         document.getElementById('taxAmount').value = tax || "";
         
-        // 2. 決定計算清潔費與保留款的基準母數
         const baseAmt = (calcBase === 'total') ? total : raw;
 
-        // 3. 清潔費
         const hasClean = document.getElementById('cleanCheck').checked;
         const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
         const cleanFee = hasClean ? Math.round(baseAmt * (cRate / 100)) : 0;
         document.getElementById('cleanAmount').value = cleanFee || "";
 
-        // 4. 小計 (基準母數 - 清潔費)
         const subtotal = baseAmt - cleanFee;
         
-        // 5. 保留款
         const hasRetention = document.getElementById('retentionCheck').checked;
         const rRate = parseFloat(document.getElementById('retentionRate').value) || 0;
         const retentionInput = document.getElementById('retentionAmount');
         let retention = hasRetention ? (isManualRetention ? (parseFloat(retentionInput.value) || 0) : Math.round(subtotal * (rRate / 100))) : 0;
         if(!isManualRetention) retentionInput.value = retention || "";
         
-        // 6. 最終淨額計算
         let net = 0;
         if (calcBase === 'total') {
-            // 含稅基準：(含稅額 - 清潔費 - 保留款) + 加扣款
             net = (subtotal - retention) + plus - minus;
         } else {
-            // 未稅基準：(未稅額 - 清潔費 - 保留款) = 稅前餘額
-            // 稅額 = 稅前餘額 * 5%
-            // 淨額 = 稅前餘額 + 重算稅額 + 加扣款
             const preTaxRemain = subtotal - retention;
             const recalculatedTax = Math.round(preTaxRemain * 0.05);
             net = preTaxRemain + recalculatedTax + plus - minus;
-            
-            // 更新畫面上顯示的稅額，使其與計算邏輯一致
-            document.getElementById('taxAmount').value = recalculatedTax;
-            tax = recalculatedTax;
         }
 
-        lastCalcState = { raw, tax, total, cRate, cleanFee, subtotal, rRate, retention, plus, minus, invoiceIncludeRet, calcBase };
+        lastCalcState = { 
+            raw, tax, total, cRate, cleanFee, subtotal, rRate, 
+            retention, plus, plusReason, minus, minusReason, 
+            invoiceIncludeRet, calcBase, isManualRetention, taxType,
+            hasClean, hasRetention
+        };
         document.getElementById('netAmount').value = net;
         renderFormula(net);
     }
@@ -286,124 +286,180 @@
     }
 
     function renderFormula(currentNet) {
+        if (!lastCalcState.raw && lastCalcState.raw !== 0) return;
         if (lastCalcState.raw === 0 && lastCalcState.plus === 0 && lastCalcState.minus === 0) {
             document.getElementById('processFormula').innerHTML = "請輸入資料...";
             return;
         }
 
+        const s = lastCalcState;
+        const isRawBase = s.calcBase === 'raw';
         let html = "";
-        const isRawBase = lastCalcState.calcBase === 'raw';
-        const baseAmtLabel = isRawBase ? fmt.format(lastCalcState.raw) : fmt.format(lastCalcState.total);
-        const baseName = isRawBase ? "未稅額" : "含稅總額";
+        let stepIdx = 0;
 
-        html += `<div>① 基準 (${baseName})：<strong>${baseAmtLabel}</strong></div>`;
-        
-        let currentStep = 2;
-
-        if (lastCalcState.cleanFee !== 0) {
-            html += `<div>② 清潔費：${baseAmtLabel} × ${lastCalcState.cRate}% = <strong>-${fmt.format(lastCalcState.cleanFee)}</strong></div>`;
-            html += `<div class="subtotal-line">③ 小計：${baseAmtLabel} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}</div>`;
-            currentStep = 4;
-        }
-        
-        if (lastCalcState.retention !== 0) {
-            const circle = currentStep === 4 ? '④' : '②';
-            html += `<div>${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = <strong>-${fmt.format(lastCalcState.retention)}</strong></div>`;
-            currentStep++;
+        // ① 基準
+        if (isRawBase) {
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>未稅金額：<strong>${fmt.format(s.raw)}</strong></span></div>`;
+        } else {
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>總金額：${fmt.format(s.raw)} + 稅${fmt.format(s.tax)} = <strong>${fmt.format(s.total)}</strong></span></div>`;
         }
 
-        const preTaxNet = lastCalcState.subtotal - lastCalcState.retention;
+        // ② 清潔費 (僅在勾選時顯示)
+        const baseAmt = isRawBase ? s.raw : s.total;
+        if (s.hasClean && s.cleanFee !== 0) {
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>清潔費：${fmt.format(baseAmt)} × ${s.cRate}% = <strong>-${fmt.format(s.cleanFee)}</strong></span></div>`;
+            html += `<div class="formula-sub">小計：${fmt.format(baseAmt)} - ${fmt.format(s.cleanFee)} = ${fmt.format(s.subtotal)}</div>`;
+        }
+
+        // ③ 保留款 (僅在勾選時顯示)
+        if (s.hasRetention && s.retention !== 0) {
+            const retCalc = s.isManualRetention ? `(手動調整)` : `× ${s.rRate}%`;
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>保留款：${fmt.format(s.subtotal)} ${retCalc} = <strong>-${fmt.format(s.retention)}</strong></span></div>`;
+            if (isRawBase) {
+                const netRaw = s.subtotal - s.retention;
+                html += `<div class="formula-sub">淨額：${fmt.format(s.subtotal)} - ${fmt.format(s.retention)} = ${fmt.format(netRaw)}</div>`;
+            }
+        }
+
+        // 加/扣款項次 (若有)
+        if (s.plus !== 0) {
+            const reason = s.plusReason ? `(${s.plusReason})` : "";
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>加款${reason}：<strong>+${fmt.format(s.plus)}</strong></span></div>`;
+        }
+        if (s.minus !== 0) {
+            const reason = s.minusReason ? `(${s.minusReason})` : "";
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>扣款${reason}：<strong>-${fmt.format(s.minus)}</strong></span></div>`;
+        }
+
+        html += `<div style="margin-top:10px; border-top:1.5px solid #EEE; padding-top:10px;">`;
 
         if (isRawBase) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            html += `<div>${circle} 稅額 (5%)：${fmt.format(preTaxNet)} × 5% = <strong>+${fmt.format(lastCalcState.tax)}</strong></div>`;
-            currentStep++;
-        }
-        
-        if (lastCalcState.plus !== 0) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            html += `<div>${circle} 加款：<strong>+${fmt.format(lastCalcState.plus)}</strong></div>`;
-            currentStep++;
-        }
-        
-        if (lastCalcState.minus !== 0) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            html += `<div>${circle} 扣款：<strong>-${fmt.format(lastCalcState.minus)}</strong></div>`;
-        }
+            // 未稅基準 總結
+            const netRaw = s.subtotal - s.retention;
+            const netTax = Math.round(netRaw * 0.05);
+            const subtotalTax = Math.round(s.subtotal * 0.05);
 
-        html += `<div style="margin-top:8px; border-top:1.5px solid #DDD; padding-top:8px; font-size: 0.85rem; color: #666;">`;
-        
-        let calcPath = `${fmt.format(preTaxNet)}`;
-        if (isRawBase) calcPath = `(${calcPath} + ${fmt.format(lastCalcState.tax)})`;
-        if (lastCalcState.plus !== 0) calcPath += ` + ${fmt.format(lastCalcState.plus)}`;
-        if (lastCalcState.minus !== 0) calcPath += ` - ${fmt.format(lastCalcState.minus)}`;
+            if (s.invoiceIncludeRet && s.hasRetention && s.retention !== 0) {
+                const invAmt = (s.subtotal + subtotalTax) + s.plus - s.minus;
+                let invPath = `${fmt.format(s.subtotal)} + 稅${fmt.format(subtotalTax)}`;
+                if (s.plus !== 0) invPath += ` + 加${fmt.format(s.plus)}`;
+                if (s.minus !== 0) invPath += ` - 扣${fmt.format(s.minus)}`;
+                html += `<div style="font-size: 0.85rem; color: #666; margin-bottom: 2px;">${invPath} = ${fmt.format(invAmt)}</div>`;
+                html += `<div style="font-size: 1rem; color: var(--text);">● 本次發票金額：<strong>${fmt.format(invAmt)}</strong> <span class="tip">(含保留款)</span></div>`;
+            }
+            
+            let payablePath = `${fmt.format(netRaw)} + 稅${fmt.format(netTax)}`;
+            if (s.plus !== 0) payablePath += ` + 加${fmt.format(s.plus)}`;
+            if (s.minus !== 0) payablePath += ` - 扣${fmt.format(s.minus)}`;
+            html += `<div style="font-size: 0.85rem; color: #666; margin-top: 8px; margin-bottom: 2px;">${payablePath} = ${fmt.format(currentNet)}</div>`;
+            html += `<div style="font-size: 1rem; color: var(--text);">● 本次應付金額：<strong>${fmt.format(currentNet)}</strong></div>`;
 
-        if (lastCalcState.invoiceIncludeRet && lastCalcState.retention !== 0) {
-            const invoiceAmt = currentNet + lastCalcState.retention;
-            html += `<div>計算：${calcPath} = ${fmt.format(currentNet)}</div>`;
-            html += `<div style="font-size: 1rem; color: var(--text); margin-top: 4px;">● 本次應付金額：<strong>${fmt.format(currentNet)}</strong></div>`;
-            html += `<div style="font-size: 1rem; color: var(--text);">● 本次發票金額：<strong>${fmt.format(invoiceAmt)}</strong> <span class="tip">(含保留款)</span></div>`;
         } else {
-            html += `<div>計算：${calcPath} = ${fmt.format(currentNet)}</div>`;
-            html += `<div style="font-size: 1rem; color: var(--text); margin-top: 4px;">● 最終淨額：<strong>${fmt.format(currentNet)}</strong></div>`;
-        }
-        html += `</div>`;
+            // 含稅基準 總結
+            if (s.invoiceIncludeRet && s.hasRetention && s.retention !== 0) {
+                const invAmt = s.subtotal + s.plus - s.minus;
+                let invPath = `${fmt.format(s.total)}`;
+                if (s.hasClean && s.cleanFee !== 0) invPath += ` - ${fmt.format(s.cleanFee)}`;
+                if (s.plus !== 0) invPath += ` + 加${fmt.format(s.plus)}`;
+                if (s.minus !== 0) invPath += ` - 扣${fmt.format(s.minus)}`;
+                html += `<div style="font-size: 0.85rem; color: #666; margin-bottom: 2px;">${invPath} = ${fmt.format(invAmt)}</div>`;
+                html += `<div style="font-size: 1rem; color: var(--text);">● 本次發票金額：<strong>${fmt.format(invAmt)}</strong> <span class="tip">(含保留款)</span></div>`;
+            }
 
+            let payablePathParts = [];
+            payablePathParts.push(fmt.format(s.total));
+            if (s.hasClean && s.cleanFee !== 0) payablePathParts.push(`- ${fmt.format(s.cleanFee)}`);
+            if (s.hasRetention && s.retention !== 0) payablePathParts.push(`- ${fmt.format(s.retention)}`);
+            if (s.plus !== 0) payablePathParts.push(`+ 加${fmt.format(s.plus)}`);
+            if (s.minus !== 0) payablePathParts.push(`- 扣${fmt.format(s.minus)}`);
+            let payablePath = payablePathParts.join(" ");
+
+            html += `<div style="font-size: 0.85rem; color: #666; margin-top: 8px; margin-bottom: 2px;">${payablePath} = ${fmt.format(currentNet)}</div>`;
+            html += `<div style="font-size: 1rem; color: var(--text);">● 本次應付金額：<strong>${fmt.format(currentNet)}</strong></div>`;
+        }
+
+        html += `</div>`;
         document.getElementById('processFormula').innerHTML = html;
     }
 
     function copyResult() {
         const net = parseFloat(document.getElementById('netAmount').value) || 0;
-        if (!net || net == 0) { alert("請先輸入金額"); return; }
-
-        const isRawBase = lastCalcState.calcBase === 'raw';
-        const baseAmtLabel = isRawBase ? fmt.format(lastCalcState.raw) : fmt.format(lastCalcState.total);
-        const baseName = isRawBase ? "未稅額" : "含稅總額";
-
-        let text = `【工程費用計算明細】(基準：${baseName})\n`;
-        text += `① 基準金額：${baseAmtLabel}\n`;
+        if (!net && net !== 0) { alert("請先輸入金額"); return; }
         
-        let currentStep = 2;
-
-        if (lastCalcState.cleanFee !== 0) {
-            text += `② 清潔費：${baseAmtLabel} × ${lastCalcState.cRate}% = -${fmt.format(lastCalcState.cleanFee)}\n`;
-            text += `③ 小計：${baseAmtLabel} - ${fmt.format(lastCalcState.cleanFee)} = ${fmt.format(lastCalcState.subtotal)}\n`;
-            currentStep = 4;
-        }
-        
-        if (lastCalcState.retention !== 0) {
-            const circle = currentStep === 4 ? '④' : '②';
-            text += `${circle} 保留款：${fmt.format(lastCalcState.subtotal)} × ${lastCalcState.rRate}% = -${fmt.format(lastCalcState.retention)}\n`;
-            currentStep++;
-        }
-
-        const preTaxNet = lastCalcState.subtotal - lastCalcState.retention;
+        const s = lastCalcState;
+        const isRawBase = s.calcBase === 'raw';
+        let text = `【工程費用計算明細】\n`;
+        let stepIdx = 0;
 
         if (isRawBase) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            text += `${circle} 稅額 (5%)：${fmt.format(preTaxNet)} × 5% = +${fmt.format(lastCalcState.tax)}\n`;
-            currentStep++;
+            text += `${circles[stepIdx++]} 未稅金額：${fmt.format(s.raw)}\n`;
+        } else {
+            text += `${circles[stepIdx++]} 總金額：${fmt.format(s.raw)} + 稅${fmt.format(s.tax)} = ${fmt.format(s.total)}\n`;
+        }
+
+        const baseAmt = isRawBase ? s.raw : s.total;
+        if (s.hasClean && s.cleanFee !== 0) {
+            text += `${circles[stepIdx++]} 清潔費：${fmt.format(baseAmt)} × ${s.cRate}% = -${fmt.format(s.cleanFee)}\n`;
+            text += `    小計：${fmt.format(baseAmt)} - ${fmt.format(s.cleanFee)} = ${fmt.format(s.subtotal)}\n`;
         }
         
-        if (lastCalcState.plus !== 0) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            text += `${circle} 加款：+${fmt.format(lastCalcState.plus)}\n`;
-            currentStep++;
+        if (s.hasRetention && s.retention !== 0) {
+            const retCalc = s.isManualRetention ? `(手動調整)` : `× ${s.rRate}%`;
+            text += `${circles[stepIdx++]} 保留款：${fmt.format(s.subtotal)} ${retCalc} = -${fmt.format(s.retention)}\n`;
+            if (isRawBase) {
+                text += `    淨額：${fmt.format(s.subtotal)} - ${fmt.format(s.retention)} = ${fmt.format(s.subtotal - s.retention)}\n`;
+            }
         }
-        
-        if (lastCalcState.minus !== 0) {
-            const circle = ['②','③','④','⑤','⑥'][currentStep-2] || '●';
-            text += `${circle} 扣款：-${fmt.format(lastCalcState.minus)}\n`;
+
+        if (s.plus !== 0) {
+            text += `${circles[stepIdx++]} 加款${s.plusReason ? '('+s.plusReason+')' : ''}：+${fmt.format(s.plus)}\n`;
+        }
+        if (s.minus !== 0) {
+            text += `${circles[stepIdx++]} 扣款${s.minusReason ? '('+s.minusReason+')' : ''}：-${fmt.format(s.minus)}\n`;
         }
 
         text += `------------------\n`;
-        
-        if (lastCalcState.invoiceIncludeRet && lastCalcState.retention !== 0) {
-            const invoiceAmt = net + lastCalcState.retention;
-            text += `● 本次應付金額：${fmt.format(net)}\n`;
-            text += `● 本次發票金額：${fmt.format(invoiceAmt)} (含保留款)`;
+
+        if (isRawBase) {
+            const netRaw = s.subtotal - s.retention;
+            const netTax = Math.round(netRaw * 0.05);
+            const subtotalTax = Math.round(s.subtotal * 0.05);
+            
+            if (s.invoiceIncludeRet && s.hasRetention && s.retention !== 0) {
+                const invAmt = (s.subtotal + subtotalTax) + s.plus - s.minus;
+                let invPath = `${fmt.format(s.subtotal)} + 稅${fmt.format(subtotalTax)}`;
+                if (s.plus !== 0) invPath += ` + 加${fmt.format(s.plus)}`;
+                if (s.minus !== 0) invPath += ` - 扣${fmt.format(s.minus)}`;
+                text += `${invPath} = ${fmt.format(invAmt)}\n`;
+                text += `● 本次發票金額：${fmt.format(invAmt)} (含保留款)\n\n`;
+            }
+            
+            let payablePath = `${fmt.format(netRaw)} + 稅${fmt.format(netTax)}`;
+            if (s.plus !== 0) payablePath += ` + 加${fmt.format(s.plus)}`;
+            if (s.minus !== 0) payablePath += ` - 扣${fmt.format(s.minus)}`;
+            text += `${payablePath} = ${fmt.format(net)}\n`;
+            text += `● 本次應付金額：${fmt.format(net)}`;
         } else {
-            text += `● 最終淨額：${fmt.format(net)}`;
+            if (s.invoiceIncludeRet && s.hasRetention && s.retention !== 0) {
+                const invAmt = s.subtotal + s.plus - s.minus;
+                let invPath = `${fmt.format(s.total)}`;
+                if (s.hasClean && s.cleanFee !== 0) invPath += ` - ${fmt.format(s.cleanFee)}`;
+                if (s.plus !== 0) invPath += ` + 加${fmt.format(s.plus)}`;
+                if (s.minus !== 0) invPath += ` - 扣${fmt.format(s.minus)}`;
+                text += `${invPath} = ${fmt.format(invAmt)}\n`;
+                text += `● 本次發票金額：${fmt.format(invAmt)} (含保留款)\n\n`;
+            }
+
+            let payablePathParts = [];
+            payablePathParts.push(fmt.format(s.total));
+            if (s.hasClean && s.cleanFee !== 0) payablePathParts.push(`- ${fmt.format(s.cleanFee)}`);
+            if (s.hasRetention && s.retention !== 0) payablePathParts.push(`- ${fmt.format(s.retention)}`);
+            if (s.plus !== 0) payablePathParts.push(`+ 加${fmt.format(s.plus)}`);
+            if (s.minus !== 0) payablePathParts.push(`- 扣${fmt.format(s.minus)}`);
+            let payablePath = payablePathParts.join(" ");
+
+            text += `${payablePath} = ${fmt.format(net)}\n`;
+            text += `● 本次應付金額：${fmt.format(net)}`;
         }
 
         navigator.clipboard.writeText(text).then(() => {
