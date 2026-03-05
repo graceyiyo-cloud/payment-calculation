@@ -141,15 +141,15 @@
         <div class="config-box">
             <div class="row">
                 <div class="col">
-                    <label>計算基準 <span class="tip">(影響清潔費與保留款母數)</span></label>
+                    <label>計算基準 <span class="tip">(只影響計算過程，不影響最後金額)</span></label>
                     <div class="toggle-group" id="calcBaseGroup">
                         <label>
-                            <input type="radio" name="calcBase" value="total" checked onchange="calculate()">
-                            <span>全額(含稅)</span>
+                            <input type="radio" name="calcBase" value="raw" checked onchange="calculate()">
+                            <span>未稅額</span>
                         </label>
                         <label>
-                            <input type="radio" name="calcBase" value="raw" onchange="calculate()">
-                            <span>未稅額</span>
+                            <input type="radio" name="calcBase" value="total" onchange="calculate()">
+                            <span>全額(含稅)</span>
                         </label>
                     </div>
                 </div>
