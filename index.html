@@ -67,7 +67,7 @@
         .btn-reset { flex: 1; padding: 14px; background: #FFF; color: var(--danger); border: 1.5px solid var(--danger); border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.2s; }
         .btn-reset:hover { background: #FFF5F5; }
 
-        .check-label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-size: 0.9rem; }
+        .check-label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text); font-size: 0.9rem; transition: 0.2s; }
         .check-label input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); }
 
         .toggle-group { 
@@ -98,6 +98,13 @@
         }
         #calcBaseGroup input:checked + span {
             background: var(--accent);
+        }
+
+        /* 新增：反灰不可點選的樣式 */
+        .disabled-state {
+            opacity: 0.4;
+            pointer-events: none;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -160,8 +167,8 @@
                     <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()">
                 </div>
                 <div class="col">
-                    <label>清潔保險金額</label>
-                    <input type="number" id="cleanAmount" readonly>
+                    <label>清潔保險金額 (可手修)</label>
+                    <input type="number" id="cleanAmount" oninput="calculate('clean')">
                 </div>
             </div>
             <div class="row">
@@ -171,12 +178,12 @@
                 </div>
                 <div class="col">
                     <label>保留款金額 (可手修)</label>
-                    <input type="number" id="retentionAmount" oninput="calculate(true)">
+                    <input type="number" id="retentionAmount" oninput="calculate('retention')">
                 </div>
             </div>
             <div class="row" style="margin-bottom: 0;">
                 <div class="col">
-                    <label class="check-label">
+                    <label class="check-label" id="invoiceIncludeRetentionLabel">
                         <input type="checkbox" id="invoiceIncludeRetention" onchange="calculate()"> 
                         發票金額含保留款 <span class="tip">(勾選後將分列應付與發票)</span>
                     </label>
@@ -221,7 +228,11 @@
     const circles = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
     let lastCalcState = {};
 
-    function calculate(isManualRetention = false) {
+    function calculate(source = null) {
+        // 判斷手動觸發的來源
+        const isManualRetention = (source === 'retention' || source === true);
+        const isManualClean = (source === 'clean');
+
         const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
         const calcBase = document.querySelector('input[name="calcBase"]:checked').value;
@@ -229,7 +240,22 @@
         const plusReason = document.getElementById('plusReason').value.trim();
         const minus = parseFloat(document.getElementById('minusAmount').value) || 0;
         const minusReason = document.getElementById('minusReason').value.trim();
-        const invoiceIncludeRet = document.getElementById('invoiceIncludeRetention').checked;
+        
+        // 處理保留款勾選狀態與反灰連動
+        const hasRetention = document.getElementById('retentionCheck').checked;
+        const invoiceRetLabel = document.getElementById('invoiceIncludeRetentionLabel');
+        const invoiceRetCheck = document.getElementById('invoiceIncludeRetention');
+        
+        if (!hasRetention) {
+            invoiceRetCheck.disabled = true;
+            invoiceRetCheck.checked = false; 
+            invoiceRetLabel.classList.add('disabled-state');
+        } else {
+            invoiceRetCheck.disabled = false;
+            invoiceRetLabel.classList.remove('disabled-state');
+        }
+        
+        const invoiceIncludeRet = invoiceRetCheck.checked;
         
         let raw = 0, tax = 0, total = 0;
 
@@ -248,14 +274,16 @@
         
         const baseAmt = (calcBase === 'total') ? total : raw;
 
+        // 清潔保險費計算 (支援手修)
         const hasClean = document.getElementById('cleanCheck').checked;
         const cRate = parseFloat(document.getElementById('cleanRate').value) || 0;
-        const cleanFee = hasClean ? Math.round(baseAmt * (cRate / 100)) : 0;
-        document.getElementById('cleanAmount').value = cleanFee || "";
+        const cleanInput = document.getElementById('cleanAmount');
+        let cleanFee = hasClean ? (isManualClean ? (parseFloat(cleanInput.value) || 0) : Math.round(baseAmt * (cRate / 100))) : 0;
+        if(!isManualClean) cleanInput.value = cleanFee || "";
 
         const subtotal = baseAmt - cleanFee;
         
-        const hasRetention = document.getElementById('retentionCheck').checked;
+        // 保留款計算 (支援手修)
         const rRate = parseFloat(document.getElementById('retentionRate').value) || 0;
         const retentionInput = document.getElementById('retentionAmount');
         let retention = hasRetention ? (isManualRetention ? (parseFloat(retentionInput.value) || 0) : Math.round(subtotal * (rRate / 100))) : 0;
@@ -273,7 +301,7 @@
         lastCalcState = { 
             raw, tax, total, cRate, cleanFee, subtotal, rRate, 
             retention, plus, plusReason, minus, minusReason, 
-            invoiceIncludeRet, calcBase, isManualRetention, taxType,
+            invoiceIncludeRet, calcBase, isManualRetention, isManualClean, taxType,
             hasClean, hasRetention
         };
         document.getElementById('netAmount').value = net;
@@ -307,7 +335,8 @@
         // ② 清潔費 (僅在勾選時顯示)
         const baseAmt = isRawBase ? s.raw : s.total;
         if (s.hasClean && s.cleanFee !== 0) {
-            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>清潔費：${fmt.format(baseAmt)} × ${s.cRate}% = <strong>-${fmt.format(s.cleanFee)}</strong></span></div>`;
+            const cleanCalc = s.isManualClean ? `(手動調整)` : `× ${s.cRate}%`;
+            html += `<div class="formula-row"><span>${circles[stepIdx++]}</span><span>清潔費：${fmt.format(baseAmt)} ${cleanCalc} = <strong>-${fmt.format(s.cleanFee)}</strong></span></div>`;
             html += `<div class="formula-sub">小計：${fmt.format(baseAmt)} - ${fmt.format(s.cleanFee)} = ${fmt.format(s.subtotal)}</div>`;
         }
 
@@ -399,7 +428,8 @@
 
         const baseAmt = isRawBase ? s.raw : s.total;
         if (s.hasClean && s.cleanFee !== 0) {
-            text += `${circles[stepIdx++]} 清潔費：${fmt.format(baseAmt)} × ${s.cRate}% = -${fmt.format(s.cleanFee)}\n`;
+            const cleanCalc = s.isManualClean ? `(手動調整)` : `× ${s.cRate}%`;
+            text += `${circles[stepIdx++]} 清潔費：${fmt.format(baseAmt)} ${cleanCalc} = -${fmt.format(s.cleanFee)}\n`;
             text += `    小計：${fmt.format(baseAmt)} - ${fmt.format(s.cleanFee)} = ${fmt.format(s.subtotal)}\n`;
         }
         
@@ -473,6 +503,9 @@
             }, 2000);
         });
     }
+    
+    // 網頁載入時初始化一次反灰狀態
+    window.onload = () => { calculate(); };
 </script>
 
 </body>
