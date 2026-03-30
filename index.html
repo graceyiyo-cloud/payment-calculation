@@ -100,11 +100,23 @@
             background: var(--accent);
         }
 
-        /* 新增：反灰不可點選的樣式 */
+        /* 反灰不可點選的樣式 */
         .disabled-state {
             opacity: 0.4;
             pointer-events: none;
             cursor: not-allowed;
+        }
+
+        /* RWD 微調：針對手機版縮小邊界與內距 */
+        @media (max-width: 480px) {
+            body { padding: 8px; }
+            .card { padding: 18px; border-radius: 16px; margin-bottom: 12px; }
+            h2 { margin-bottom: 20px; font-size: 1.25rem; }
+            .row { gap: 8px; margin-bottom: 14px; }
+            .config-box { padding: 12px; margin: 15px 0; }
+            .display-area { padding: 15px; }
+            input { padding: 10px; }
+            #netAmount { height: 54px; font-size: 1.35rem; }
         }
     </style>
 </head>
@@ -148,7 +160,7 @@
         <div class="config-box">
             <div class="row">
                 <div class="col">
-                    <label>計算基準 <span class="tip">(只影響計算過程，不影響最後金額)</span></label>
+                    <label>計算基準 <span class="tip">(只影響計算過程)</span></label>
                     <div class="toggle-group" id="calcBaseGroup">
                         <label>
                             <input type="radio" name="calcBase" value="raw" checked onchange="calculate()">
@@ -167,7 +179,7 @@
                     <input type="number" id="cleanRate" value="0.5" step="0.1" oninput="calculate()">
                 </div>
                 <div class="col">
-                    <label>清潔保險金額 (可手修)</label>
+                    <label>清潔金額 (可修)</label>
                     <input type="number" id="cleanAmount" oninput="calculate('clean')">
                 </div>
             </div>
@@ -177,7 +189,7 @@
                     <input type="number" id="retentionRate" value="10" step="1" oninput="calculate()">
                 </div>
                 <div class="col">
-                    <label>保留款金額 (可手修)</label>
+                    <label>保留金額 (可修)</label>
                     <input type="number" id="retentionAmount" oninput="calculate('retention')">
                 </div>
             </div>
@@ -185,7 +197,7 @@
                 <div class="col">
                     <label class="check-label" id="invoiceIncludeRetentionLabel">
                         <input type="checkbox" id="invoiceIncludeRetention" onchange="calculate()"> 
-                        發票金額含保留款 <span class="tip">(勾選後將分列應付與發票)</span>
+                        發票金額含保留款 <span class="tip">(分列應付與發票)</span>
                     </label>
                 </div>
             </div>
@@ -193,12 +205,12 @@
 
         <div class="row">
             <div class="col">
-                <label>加款金額 <span class="tip">(請填含稅)</span></label>
+                <label>加款金額 <span class="tip">(含稅)</span></label>
                 <input type="number" id="plusAmount" placeholder="0" oninput="calculate()">
                 <input type="text" id="plusReason" class="reason-input" placeholder="加款事由..." oninput="calculate()">
             </div>
             <div class="col">
-                <label>扣款金額 <span class="tip">(請填含稅)</span></label>
+                <label>扣款金額 <span class="tip">(含稅)</span></label>
                 <input type="number" id="minusAmount" placeholder="0" oninput="calculate()">
                 <input type="text" id="minusReason" class="reason-input" placeholder="扣款事由..." oninput="calculate()">
             </div>
