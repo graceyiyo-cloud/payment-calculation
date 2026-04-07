@@ -128,7 +128,7 @@
         
         <div class="row">
             <div class="col">
-                <label>輸入金額</label>
+                <label>輸入金額 <span class="tip">(請輸入整數)</span></label>
                 <input type="number" id="inputAmount" placeholder="0" oninput="calculate()">
             </div>
             <div class="col">
@@ -245,7 +245,15 @@
         const isManualRetention = (source === 'retention' || source === true);
         const isManualClean = (source === 'clean');
 
-        const inputVal = parseFloat(document.getElementById('inputAmount').value) || 0;
+        const inputField = document.getElementById('inputAmount');
+        let inputVal = parseFloat(inputField.value) || 0;
+
+        // 若輸入含小數點，自動四捨五入並同步回填 UI
+        if (inputVal % 1 !== 0) {
+            inputVal = Math.round(inputVal);
+            inputField.value = inputVal;
+        }
+
         const taxType = document.querySelector('input[name="taxType"]:checked').value;
         const calcBase = document.querySelector('input[name="calcBase"]:checked').value;
         const plus = parseFloat(document.getElementById('plusAmount').value) || 0;
